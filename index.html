@@ -315,26 +315,28 @@ input[type=file]{display:none}
         <div class="code-block" id="codeBlock">const SS_ID = '你的試算表ID';  // ← 換成你的ID
 const SUPPLY_SHEET = '耗材庫存';
 const LOG_SHEET = '出入庫記錄';
-const PHOTO_FOLDER = '耗材照片';   // Google Drive 資料夾名稱（自動建立）
+const PHOTO_FOLDER = '耗材照片';
 
-// 全部走 doGet，避免 CORS preflight 問題
+// GET：讀取資料
 function doGet(e) {
   const action = e.parameter.action;
   if (action === 'ping') return ok({status: 'ok'});
   if (action === 'getAll') return ok(getAllData());
-
-  if (e.parameter.payload) {
-    try {
-      const body = JSON.parse(e.parameter.payload);
-      if (body.action === 'saveAll') {
-        saveAll(body.data);
-        return ok({saved: true});
-      }
-    } catch(err) {
-      return ok({error: 'payload parse error: ' + err.message});
-    }
-  }
   return ok({error: 'unknown action'});
+}
+
+// POST：寫入資料（與 booking admin 相同方式）
+function doPost(e) {
+  try {
+    const body = JSON.parse(e.postData.contents);
+    if (body.action === 'saveAll') {
+      saveAll(body.data);
+      return ok({saved: true});
+    }
+    return ok({error: 'unknown action'});
+  } catch(err) {
+    return ok({error: err.message});
+  }
 }
 
 function getAllData() {
@@ -347,31 +349,24 @@ function getAllData() {
 
 function saveAll(data) {
   const ss = SpreadsheetApp.openById(SS_ID);
-  // 處理圖片：把 base64 上傳到 Drive，換成公開連結
+  // 圖片：base64 上傳到 Drive，改存公開連結
   const folder = getPhotoFolder();
   if (data.supplies) {
-    data.supplies = data.supplies.map(s => {
-      if (s.photo && s.photo.startsWith('data:image')) {
+    data.supplies = data.supplies.map(function(s) {
+      if (s.photo && s.photo.indexOf('data:image') === 0) {
         try {
-          const matches = s.photo.match(/^data:(image\/\w+);base64,(.+)$/);
-          if (matches) {
-            const mimeType = matches[1];
-            const ext = mimeType.split('/')[1];
-            const blob = Utilities.newBlob(
-              Utilities.base64Decode(matches[2]), mimeType, s.name + '_' + s.id + '.' + ext
-            );
-            // 刪除舊檔（同名）
-            const existing = folder.getFilesByName(blob.getName());
-            while (existing.hasNext()) existing.next().setTrashed(true);
-            // 上傳新檔並設為公開
-            const file = folder.createFile(blob);
-            file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-            const fileId = file.getId();
-            s.photo = 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w400';
-          }
-        } catch(err) {
-          s.photo = '';
-        }
+          const parts = s.photo.split(',');
+          const meta  = parts[0]; // e.g. data:image/png;base64
+          const b64   = parts[1];
+          const mime  = meta.split(':')[1].split(';')[0];
+          const ext   = mime.split('/')[1];
+          const blob  = Utilities.newBlob(Utilities.base64Decode(b64), mime, s.name + '_' + s.id + '.' + ext);
+          const existing = folder.getFilesByName(blob.getName());
+          while (existing.hasNext()) existing.next().setTrashed(true);
+          const file = folder.createFile(blob);
+          file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+          s.photo = 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w400';
+        } catch(err) { s.photo = ''; }
       }
       return s;
     });
@@ -391,7 +386,9 @@ function sheetToJson(sheet) {
   const vals = sheet.getDataRange().getValues();
   if (vals.length < 2) return [];
   const hdr = vals[0];
-  return vals.slice(1).map(r => Object.fromEntries(hdr.map((h, i) => [h, r[i]])));
+  return vals.slice(1).map(function(r) {
+    return Object.fromEntries(hdr.map(function(h, i) { return [h, r[i]]; }));
+  });
 }
 
 function jsonToSheet(sheet, arr) {
@@ -399,14 +396,16 @@ function jsonToSheet(sheet, arr) {
   const hdr = Object.keys(arr[0]);
   sheet.clearContents();
   sheet.appendRow(hdr);
-  arr.forEach(r => sheet.appendRow(hdr.map(h => r[h] !== undefined ? r[h] : '')));
+  arr.forEach(function(r) {
+    sheet.appendRow(hdr.map(function(h) { return r[h] !== undefined ? r[h] : ''; }));
+  });
 }
 
 function ok(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
-}</div>
+}
         <button class="btn btn-sm" style="margin-top:.75rem" onclick="copyCode()"><i class="ti ti-copy"></i> 複製程式碼</button>
       </div>
     </div>
@@ -700,10 +699,11 @@ async function gsGet(params) {
 async function gsPost(params) {
   const url = document.getElementById('gsUrl').value.trim();
   if (!url) { alert('請先輸入 Apps Script 網址'); return null; }
-  // Apps Script CORS: encode payload as GET param to avoid preflight
   try {
-    const payload = encodeURIComponent(JSON.stringify(params));
-    const res = await fetch(url + '?payload=' + payload);
+    const res = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify(params)
+    });
     return await res.json();
   } catch(e) { addSyncLog('❌ 失敗：' + e.message); setGsStatus('err', '連線失敗'); return null; }
 }
