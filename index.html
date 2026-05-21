@@ -696,21 +696,42 @@ async function gsGet(params) {
     return await res.json();
   } catch(e) { addSyncLog('❌ 失敗：' + e.message); setGsStatus('err', '連線失敗'); return null; }
 }
-async function gsPost(params) {
+// 單筆 API，fire-and-forget（跟傳情系統一樣）
+function apiPost(params) {
   const url = document.getElementById('gsUrl').value.trim();
-  if (!url) { alert('請先輸入 Apps Script 網址'); return null; }
-  try {
-    await fetch(url, {
-      method: 'POST',
-      mode: 'no-cors',
-      body: JSON.stringify(params)
-    });
-    return { saved: true };  // 假設成功
-  } catch(e) {
-    addSyncLog('❌ 失敗：' + e.message);
-    setGsStatus('err', '連線失敗');
-    return null;
-  }
+  if (!url) return;
+  fetch(url, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify(params)
+  }).catch(e => addSyncLog('❌ ' + e.message));
+}
+
+// 新增耗材時
+function saveAdd() {
+  // ... 原本的邏輯 ...
+  supplies.push(newItem);
+  apiPost({ action: 'addSupply', supply: newItem });  // 只送這一筆
+  renderAll();
+}
+
+// 更新耗材時
+function saveEdit(id) {
+  // ... 原本的邏輯 ...
+  apiPost({ action: 'updateSupply', supply: updatedItem });
+}
+
+// 刪除耗材時
+function deleteItem(id) {
+  // ... 原本的邏輯 ...
+  apiPost({ action: 'deleteSupply', id });
+}
+
+// 出入庫時
+function submitTxn() {
+  // ... 原本的邏輯 ...
+  apiPost({ action: 'updateSupply', supply: { id: s.id, stock: s.stock } });
+  apiPost({ action: 'addLog', log: newLog });
 }
 async function gsTest() {
   addSyncLog('測試連線中…');
