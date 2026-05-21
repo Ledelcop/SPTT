@@ -312,67 +312,55 @@ input[type=file]{display:none}
           <div class="step-item"><div class="step-num">5</div><div class="step-text">複製部署後的網址，貼到上方「Apps Script Web App 網址」欄位，按<strong>測試連線</strong>確認成功後，按<strong>同步到 Sheets</strong></div></div>
           <div class="step-item"><div class="step-num">6</div><div class="step-text">下次接手的社員只需填入網址，按「從 Sheets 載入」就能取回所有資料 ✓</div></div>
         </div>
-        <div class="code-block" id="codeBlock">const SS_ID = '你的試算表ID';  // ← 換成你的ID
+        <div class="code-block" id="codeBlock">const SS_ID        = '你的試算表ID';  // ← 換成你的ID
 const SUPPLY_SHEET = '耗材庫存';
-const LOG_SHEET = '出入庫記錄';
+const LOG_SHEET    = '出入庫記錄';
 const PHOTO_FOLDER = '耗材照片';
 
-// GET：讀取資料
 function doGet(e) {
   const action = e.parameter.action;
-  if (action === 'ping') return ok({status: 'ok'});
+  if (action === 'ping')   return ok({ status: 'ok' });
   if (action === 'getAll') return ok(getAllData());
-  return ok({error: 'unknown action'});
+  return ok({ error: 'unknown action' });
 }
 
-// POST：寫入資料（與 booking admin 相同方式）
 function doPost(e) {
   try {
-    const body = JSON.parse(e.postData.contents);
-    if (body.action === 'saveAll') {
-      saveAll(body.data);
-      return ok({saved: true});
-    }
-    return ok({error: 'unknown action'});
+    const body   = JSON.parse(e.postData.contents);
+    const action = body.action;
+    if (action === 'addSupply')    return ok(addSupply(body.supply));
+    if (action === 'updateSupply') return ok(updateSupply(body.supply));
+    if (action === 'deleteSupply') return ok(deleteSupply(body.id));
+    if (action === 'addLog')       return ok(addLog(body.log));
+    if (action === 'uploadPhoto')  return ok(uploadPhoto(body.id, body.photo));
+    if (action === 'saveAll')      return ok(saveAll(body.data));
+    return ok({ error: 'unknown action' });
   } catch(err) {
-    return ok({error: err.message});
+    return ok({ error: err.message });
   }
 }
 
-function getAllData() {
-  const ss = SpreadsheetApp.openById(SS_ID);
-  return {
-    supplies: sheetToJson(ss.getSheetByName(SUPPLY_SHEET)),
-    logs:     sheetToJson(ss.getSheetByName(LOG_SHEET))
-  };
-}
-
-function saveAll(data) {
-  const ss = SpreadsheetApp.openById(SS_ID);
-  // 圖片：base64 上傳到 Drive，改存公開連結
-  const folder = getPhotoFolder();
-  if (data.supplies) {
-    data.supplies = data.supplies.map(function(s) {
-      if (s.photo && s.photo.indexOf('data:image') === 0) {
-        try {
-          const parts = s.photo.split(',');
-          const meta  = parts[0]; // e.g. data:image/png;base64
-          const b64   = parts[1];
-          const mime  = meta.split(':')[1].split(';')[0];
-          const ext   = mime.split('/')[1];
-          const blob  = Utilities.newBlob(Utilities.base64Decode(b64), mime, s.name + '_' + s.id + '.' + ext);
-          const existing = folder.getFilesByName(blob.getName());
-          while (existing.hasNext()) existing.next().setTrashed(true);
-          const file = folder.createFile(blob);
-          file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-          s.photo = 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w400';
-        } catch(err) { s.photo = ''; }
-      }
-      return s;
-    });
+// ── 照片上傳：base64 → Drive → 公開縮圖 URL ──
+function uploadPhoto(supplyId, base64DataUrl) {
+  try {
+    const parts  = base64DataUrl.split(',');
+    const mime   = parts[0].split(':')[1].split(';')[0];       // e.g. image/jpeg
+    const ext    = mime.split('/')[1];
+    const blob   = Utilities.newBlob(
+      Utilities.base64Decode(parts[1]), mime,
+      'supply_' + supplyId + '.' + ext
+    );
+    const folder = getPhotoFolder();
+    // 刪除同名舊檔
+    const old = folder.getFilesByName(blob.getName());
+    while (old.hasNext()) old.next().setTrashed(true);
+    // 上傳並公開
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return { url: 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w400' };
+  } catch(err) {
+    return { error: err.message };
   }
-  jsonToSheet(ss.getSheetByName(SUPPLY_SHEET), data.supplies);
-  jsonToSheet(ss.getSheetByName(LOG_SHEET),    data.logs);
 }
 
 function getPhotoFolder() {
@@ -381,6 +369,65 @@ function getPhotoFolder() {
   return DriveApp.createFolder(PHOTO_FOLDER);
 }
 
+// ── 批次存檔（saveAll） ──
+function saveAll(data) {
+  const ss = SpreadsheetApp.openById(SS_ID);
+  if (data.supplies) jsonToSheet(ss.getSheetByName(SUPPLY_SHEET), data.supplies);
+  if (data.logs)     jsonToSheet(ss.getSheetByName(LOG_SHEET),    data.logs);
+  return { saved: true };
+}
+
+// ── 單筆 CRUD ──
+function getAllData() {
+  const ss = SpreadsheetApp.openById(SS_ID);
+  return {
+    supplies: sheetToJson(ss.getSheetByName(SUPPLY_SHEET)),
+    logs:     sheetToJson(ss.getSheetByName(LOG_SHEET))
+  };
+}
+function addSupply(s) {
+  const sheet = SpreadsheetApp.openById(SS_ID).getSheetByName(SUPPLY_SHEET);
+  ensureHeaders(sheet, ['id','name','cat','stock','unit','min','location','notes','photo']);
+  sheet.appendRow([s.id,s.name,s.cat,s.stock,s.unit,s.min,s.location,s.notes,s.photo||'']);
+  return { success: true };
+}
+function updateSupply(s) {
+  const sheet = SpreadsheetApp.openById(SS_ID).getSheetByName(SUPPLY_SHEET);
+  const data = sheet.getDataRange().getValues();
+  const hdr  = data[0];
+  const idCol = hdr.indexOf('id');
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][idCol]) === String(s.id)) {
+      hdr.forEach(function(h, c) {
+        if (s[h] !== undefined) sheet.getRange(i+1, c+1).setValue(s[h]);
+      });
+      return { success: true };
+    }
+  }
+  return { error: '找不到 id: ' + s.id };
+}
+function deleteSupply(id) {
+  const sheet = SpreadsheetApp.openById(SS_ID).getSheetByName(SUPPLY_SHEET);
+  const data  = sheet.getDataRange().getValues();
+  const idCol = data[0].indexOf('id');
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][idCol]) === String(id)) {
+      sheet.deleteRow(i + 1);
+      return { success: true };
+    }
+  }
+  return { error: '找不到 id: ' + id };
+}
+function addLog(log) {
+  const sheet = SpreadsheetApp.openById(SS_ID).getSheetByName(LOG_SHEET);
+  ensureHeaders(sheet, ['date','name','type','qty','unit','person','note']);
+  sheet.appendRow([log.date,log.name,log.type,log.qty,log.unit,log.person,log.note||'']);
+  return { success: true };
+}
+function ensureHeaders(sheet, headers) {
+  if (!sheet) return;
+  if (sheet.getLastRow() === 0) sheet.appendRow(headers);
+}
 function sheetToJson(sheet) {
   if (!sheet) return [];
   const vals = sheet.getDataRange().getValues();
@@ -390,7 +437,6 @@ function sheetToJson(sheet) {
     return Object.fromEntries(hdr.map(function(h, i) { return [h, r[i]]; }));
   });
 }
-
 function jsonToSheet(sheet, arr) {
   if (!sheet || !arr || !arr.length) return;
   const hdr = Object.keys(arr[0]);
@@ -400,12 +446,10 @@ function jsonToSheet(sheet, arr) {
     sheet.appendRow(hdr.map(function(h) { return r[h] !== undefined ? r[h] : ''; }));
   });
 }
-
 function ok(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
+  return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
-}
+}</div>
         <button class="btn btn-sm" style="margin-top:.75rem" onclick="copyCode()"><i class="ti ti-copy"></i> 複製程式碼</button>
       </div>
     </div>
@@ -420,33 +464,41 @@ function ok(obj) {
 <div class="notif" id="notif"></div>
 
 <script>
+// ─────────────────────────────────────────────
+//  常數 & 初始資料
+// ─────────────────────────────────────────────
 const EMOJIS = {文具:'✏️',紙材:'📄',清潔:'🧹',電器:'🔌',其他:'📦'};
-const ST = (s, m) => s <= 0 ? 'low' : s <= m ? 'warn' : 'ok';
-const SL = {low:'不足', warn:'偏低', ok:'充足'};
-const SB = {low:'b-low', warn:'b-warn', ok:'b-ok'};
+const ST  = (s, m) => s <= 0 ? 'low' : s <= m ? 'warn' : 'ok';
+const SL  = {low:'不足', warn:'偏低', ok:'充足'};
+const SB  = {low:'b-low', warn:'b-warn', ok:'b-ok'};
 
 let supplies = [
-  {id:1, name:'A4 影印紙', cat:'紙材', stock:120, unit:'張', min:50, location:'A-1', notes:'雷射列印用', photo:''},
-  {id:2, name:'白板筆（黑）', cat:'文具', stock:3, unit:'支', min:5, location:'B-2', notes:'注意蓋好筆蓋', photo:''},
-  {id:3, name:'釘書機', cat:'文具', stock:8, unit:'個', min:2, location:'A-3', notes:'', photo:''},
-  {id:4, name:'透明膠帶', cat:'文具', stock:15, unit:'捲', min:5, location:'A-2', notes:'', photo:''},
-  {id:5, name:'酒精濕紙巾', cat:'清潔', stock:0, unit:'包', min:3, location:'C-1', notes:'清潔桌面用', photo:''},
-  {id:6, name:'延長線', cat:'電器', stock:6, unit:'條', min:2, location:'D-1', notes:'最長 3m', photo:''},
-  {id:7, name:'美工刀', cat:'文具', stock:10, unit:'把', min:3, location:'B-1', notes:'', photo:''},
-  {id:8, name:'垃圾袋（大）', cat:'清潔', stock:4, unit:'包', min:5, location:'C-2', notes:'', photo:''},
+  {id:1,name:'A4 影印紙',cat:'紙材',stock:120,unit:'張',min:50,location:'A-1',notes:'雷射列印用',photo:''},
+  {id:2,name:'白板筆（黑）',cat:'文具',stock:3,unit:'支',min:5,location:'B-2',notes:'注意蓋好筆蓋',photo:''},
+  {id:3,name:'釘書機',cat:'文具',stock:8,unit:'個',min:2,location:'A-3',notes:'',photo:''},
+  {id:4,name:'透明膠帶',cat:'文具',stock:15,unit:'捲',min:5,location:'A-2',notes:'',photo:''},
+  {id:5,name:'酒精濕紙巾',cat:'清潔',stock:0,unit:'包',min:3,location:'C-1',notes:'清潔桌面用',photo:''},
+  {id:6,name:'延長線',cat:'電器',stock:6,unit:'條',min:2,location:'D-1',notes:'最長 3m',photo:''},
+  {id:7,name:'美工刀',cat:'文具',stock:10,unit:'把',min:3,location:'B-1',notes:'',photo:''},
+  {id:8,name:'垃圾袋（大）',cat:'清潔',stock:4,unit:'包',min:5,location:'C-2',notes:'',photo:''},
 ];
 let logs = [
-  {date:'2025-05-20', name:'A4 影印紙', type:'in', qty:500, unit:'張', person:'王小明', note:'定期補貨'},
-  {date:'2025-05-19', name:'白板筆（黑）', type:'out', qty:2, unit:'支', person:'陳美華', note:'活動使用'},
-  {date:'2025-05-18', name:'延長線', type:'in', qty:3, unit:'條', person:'林志遠', note:'採購'},
-  {date:'2025-05-17', name:'酒精濕紙巾', type:'out', qty:3, unit:'包', person:'李昕妤', note:'活動清潔'},
+  {date:'2025-05-20',name:'A4 影印紙',type:'in',qty:500,unit:'張',person:'王小明',note:'定期補貨'},
+  {date:'2025-05-19',name:'白板筆（黑）',type:'out',qty:2,unit:'支',person:'陳美華',note:'活動使用'},
+  {date:'2025-05-18',name:'延長線',type:'in',qty:3,unit:'條',person:'林志遠',note:'採購'},
+  {date:'2025-05-17',name:'酒精濕紙巾',type:'out',qty:3,unit:'包',person:'李昕妤',note:'活動清潔'},
 ];
-let nextId = 9;
-let viewMode = 'grid';
+let nextId     = 9;
+let viewMode   = 'grid';
 let selectedId = null;
 let pendingPhoto = '';
-let gsConnected = false;
+let gsConnected  = false;
+let autoSyncTimer = null;
+let isSyncing     = false;
 
+// ─────────────────────────────────────────────
+//  通知 & 狀態
+// ─────────────────────────────────────────────
 function notify(msg) {
   const el = document.getElementById('notif');
   el.textContent = msg;
@@ -461,41 +513,48 @@ function addSyncLog(msg) {
 function setGsStatus(type, text) {
   const b = document.getElementById('gsBadge');
   b.className = 'gs-badge gs-' + type;
-  b.innerHTML = '<i class="ti ti-' + (type==='ok'?'check':type==='err'?'x':'circle') + '" style="font-size:10px"></i> ' + text;
-  gsConnected = type === 'ok';
+  const icon = type === 'ok' ? 'check' : type === 'err' ? 'x' : 'circle';
+  b.innerHTML = `<i class="ti ti-${icon}" style="font-size:10px"></i> ${text}`;
+  gsConnected = (type === 'ok');
   document.getElementById('sideGsDot').className = 'gs-dot' + (gsConnected ? ' connected' : '');
   document.getElementById('sideGsText').textContent = gsConnected ? 'Sheets 已連線' : '尚未連線';
 }
+
+// ─────────────────────────────────────────────
+//  統計 & 渲染
+// ─────────────────────────────────────────────
 function getST(s) { return ST(s.stock, s.min); }
 function updateStats() {
   document.getElementById('s-total').textContent = supplies.length;
-  document.getElementById('s-ok').textContent = supplies.filter(s => getST(s)==='ok').length;
-  document.getElementById('s-warn').textContent = supplies.filter(s => getST(s)==='warn').length;
-  document.getElementById('s-low').textContent = supplies.filter(s => getST(s)==='low').length;
+  document.getElementById('s-ok').textContent   = supplies.filter(s => getST(s) === 'ok').length;
+  document.getElementById('s-warn').textContent  = supplies.filter(s => getST(s) === 'warn').length;
+  document.getElementById('s-low').textContent   = supplies.filter(s => getST(s) === 'low').length;
 }
 function getFiltered() {
-  const q = document.getElementById('search').value.toLowerCase();
+  const q   = document.getElementById('search').value.toLowerCase();
   const cat = document.getElementById('catFilter').value;
-  const sf = document.getElementById('statusFilter').value;
+  const sf  = document.getElementById('statusFilter').value;
   return supplies.filter(s =>
     s.name.toLowerCase().includes(q) &&
     (!cat || s.cat === cat) &&
-    (!sf || getST(s) === sf)
+    (!sf  || getST(s) === sf)
   );
 }
 function setView(v) {
   viewMode = v;
-  document.getElementById('vbtn-grid').classList.toggle('active', v==='grid');
-  document.getElementById('vbtn-list').classList.toggle('active', v==='list');
-  document.getElementById('gridView').style.display = v==='grid' ? '' : 'none';
-  document.getElementById('listView').style.display = v==='list' ? '' : 'none';
+  document.getElementById('vbtn-grid').classList.toggle('active', v === 'grid');
+  document.getElementById('vbtn-list').classList.toggle('active', v === 'list');
+  document.getElementById('gridView').style.display = v === 'grid' ? '' : 'none';
+  document.getElementById('listView').style.display = v === 'list' ? '' : 'none';
   renderInventory();
 }
 function renderInventory() { renderGrid(getFiltered()); renderList(getFiltered()); }
 function renderGrid(data) {
   document.getElementById('gridView').innerHTML = data.length ? data.map(s => {
-    const st = getST(s);
-    const img = s.photo ? `<img src="${s.photo}" alt="${s.name}">` : `<span>${EMOJIS[s.cat]||'📦'}</span>`;
+    const st  = getST(s);
+    const img = s.photo
+      ? `<img src="${s.photo}" alt="${s.name}">`
+      : `<span>${EMOJIS[s.cat] || '📦'}</span>`;
     return `<div class="supply-card" onclick="selectItem(${s.id})">
       <div class="card-img">${img}
         <label class="card-img-btn" onclick="event.stopPropagation()" title="上傳照片">
@@ -505,9 +564,9 @@ function renderGrid(data) {
       </div>
       <div class="card-body">
         <div class="card-name" title="${s.name}">${s.name}</div>
-        <div class="card-meta">${s.cat}${s.location ? ' · '+s.location : ''}</div>
+        <div class="card-meta">${s.cat}${s.location ? ' · ' + s.location : ''}</div>
         <div class="card-stock">
-          <span class="stock-num ${st==='ok'?'s-ok':st==='low'?'s-low':''}">${s.stock}</span>
+          <span class="stock-num ${st === 'ok' ? 's-ok' : st === 'low' ? 's-low' : ''}">${s.stock}</span>
           <span class="stock-unit">${s.unit}</span>
           <span class="badge ${SB[st]}">${SL[st]}</span>
         </div>
@@ -518,8 +577,10 @@ function renderGrid(data) {
 function renderList(data) {
   const body = document.getElementById('listBody');
   body.innerHTML = data.length ? data.map(s => {
-    const st = getST(s);
-    const thumb = s.photo ? `<img class="td-img" src="${s.photo}" alt="${s.name}">` : `<div class="td-ph">${EMOJIS[s.cat]||'📦'}</div>`;
+    const st    = getST(s);
+    const thumb = s.photo
+      ? `<img class="td-img" src="${s.photo}" alt="${s.name}">`
+      : `<div class="td-ph">${EMOJIS[s.cat] || '📦'}</div>`;
     return `<tr style="cursor:pointer" onclick="selectItem(${s.id})">
       <td>${thumb}</td>
       <td style="font-weight:500">${s.name}</td>
@@ -527,10 +588,15 @@ function renderList(data) {
       <td style="font-weight:500">${s.stock}</td>
       <td style="color:var(--text3)">${s.unit}</td>
       <td><span class="badge ${SB[st]}">${SL[st]}</span></td>
-      <td style="color:var(--text3);font-size:12px">${s.location||'—'}</td>
+      <td style="color:var(--text3);font-size:12px">${s.location || '—'}</td>
       <td>
-        <button class="btn btn-sm" onclick="event.stopPropagation();editItem(${s.id})" title="編輯"><i class="ti ti-edit" style="font-size:12px"></i></button>
-        <button class="btn btn-sm btn-danger" style="margin-left:3px" onclick="event.stopPropagation();deleteItem(${s.id})" title="刪除"><i class="ti ti-trash" style="font-size:12px"></i></button>
+        <button class="btn btn-sm" onclick="event.stopPropagation();editItem(${s.id})" title="編輯">
+          <i class="ti ti-edit" style="font-size:12px"></i>
+        </button>
+        <button class="btn btn-sm btn-danger" style="margin-left:3px"
+          onclick="event.stopPropagation();deleteItem(${s.id})" title="刪除">
+          <i class="ti ti-trash" style="font-size:12px"></i>
+        </button>
       </td>
     </tr>`;
   }).join('') : '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:2rem">無符合項目</td></tr>';
@@ -540,82 +606,116 @@ function selectItem(id) {
   if (selectedId === id) { selectedId = null; panel.classList.remove('open'); return; }
   selectedId = id;
   const s = supplies.find(x => x.id === id); if (!s) return;
-  const st = getST(s);
-  const img = s.photo ? `<img src="${s.photo}" alt="${s.name}" style="width:100%;height:100%;object-fit:cover">` : `<span>${EMOJIS[s.cat]||'📦'}</span>`;
+  const st  = getST(s);
+  const img = s.photo
+    ? `<img src="${s.photo}" alt="${s.name}" style="width:100%;height:100%;object-fit:cover">`
+    : `<span>${EMOJIS[s.cat] || '📦'}</span>`;
   panel.innerHTML = `
     <div class="detail-img">${img}</div>
     <div class="detail-info">
       <div class="detail-name">${s.name}</div>
-      <div class="detail-meta">${s.cat}${s.location ? ' · '+s.location : ''}</div>
-      <div class="detail-row"><span class="detail-label">庫存</span><span style="font-weight:500">${s.stock} ${s.unit}</span><span class="badge ${SB[st]}">${SL[st]}</span></div>
+      <div class="detail-meta">${s.cat}${s.location ? ' · ' + s.location : ''}</div>
+      <div class="detail-row">
+        <span class="detail-label">庫存</span>
+        <span style="font-weight:500">${s.stock} ${s.unit}</span>
+        <span class="badge ${SB[st]}">${SL[st]}</span>
+      </div>
       <div class="detail-row"><span class="detail-label">警示值</span><span>${s.min} ${s.unit}</span></div>
       ${s.notes ? `<div class="detail-row"><span class="detail-label">備註</span><span style="color:var(--text2)">${s.notes}</span></div>` : ''}
       <div style="display:flex;gap:6px;margin-top:.75rem;flex-wrap:wrap">
         <button class="btn btn-sm" onclick="openTxnFor(${s.id})"><i class="ti ti-arrows-exchange" style="font-size:12px"></i> 出入庫</button>
         <button class="btn btn-sm" onclick="editItem(${s.id})"><i class="ti ti-edit" style="font-size:12px"></i> 編輯</button>
-        <button class="btn btn-sm" onclick="document.getElementById('detailPanel').classList.remove('open');selectedId=null"><i class="ti ti-x" style="font-size:12px"></i> 關閉</button>
+        <button class="btn btn-sm" onclick="document.getElementById('detailPanel').classList.remove('open');selectedId=null">
+          <i class="ti ti-x" style="font-size:12px"></i> 關閉
+        </button>
       </div>
     </div>`;
   panel.classList.add('open');
 }
 function renderLog() {
-  const q = document.getElementById('logSearch').value.toLowerCase();
-  const t = document.getElementById('logType').value;
+  const q    = document.getElementById('logSearch').value.toLowerCase();
+  const t    = document.getElementById('logType').value;
   const body = document.getElementById('logBody');
-  const data = logs.filter(l => (l.name.toLowerCase().includes(q) || l.person.toLowerCase().includes(q)) && (!t || l.type === t));
+  const data = logs.filter(l =>
+    (l.name.toLowerCase().includes(q) || l.person.toLowerCase().includes(q)) &&
+    (!t || l.type === t)
+  );
   body.innerHTML = data.length ? data.map(l => `<tr>
     <td style="font-size:12px;color:var(--text2)">${l.date}</td>
     <td style="font-weight:500">${l.name}</td>
-    <td><span class="badge ${l.type==='in'?'b-in':'b-out'}">${l.type==='in'?'入庫':'出庫'}</span></td>
+    <td><span class="badge ${l.type === 'in' ? 'b-in' : 'b-out'}">${l.type === 'in' ? '入庫' : '出庫'}</span></td>
     <td style="font-weight:500">${l.qty}</td>
     <td style="color:var(--text3)">${l.unit}</td>
     <td>${l.person}</td>
-    <td style="color:var(--text2);font-size:12px">${l.note||'—'}</td>
-  </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:2rem">無記錄</td></tr>';
+    <td style="color:var(--text2);font-size:12px">${l.note || '—'}</td>
+  </tr>`).join('')
+  : '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:2rem">無記錄</td></tr>';
 }
+function renderAll() { updateStats(); renderInventory(); renderLog(); }
+
+// ─────────────────────────────────────────────
+//  Modal
+// ─────────────────────────────────────────────
 function openModal(type, sid) {
   const overlay = document.getElementById('modalOverlay');
-  const inner = document.getElementById('modalInner');
-  pendingPhoto = '';
+  const inner   = document.getElementById('modalInner');
+  pendingPhoto  = '';
+
   if (type === 'add' || type === 'edit') {
     const s = type === 'edit' ? supplies.find(x => x.id === sid) : null;
     inner.innerHTML = `
-      <div class="mh"><h3>${s ? '編輯耗材' : '新增耗材'}</h3><button class="mc-btn" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
+      <div class="mh"><h3>${s ? '編輯耗材' : '新增耗材'}</h3>
+        <button class="mc-btn" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
       <div class="fg2">
-        <div class="fg fg-full"><label>耗材名稱 *</label><input id="f-name" value="${s?s.name:''}" placeholder="名稱"></div>
-        <div class="fg"><label>類別</label><select id="f-cat"><option>文具</option><option>紙材</option><option>清潔</option><option>電器</option><option>其他</option></select></div>
-        <div class="fg"><label>存放位置</label><input id="f-loc" value="${s?s.location:''}" placeholder="例：A-1"></div>
-        <div class="fg"><label>初始庫存</label><input id="f-stock" type="number" value="${s?s.stock:0}" min="0"></div>
-        <div class="fg"><label>單位</label><input id="f-unit" value="${s?s.unit:'個'}" placeholder="個"></div>
-        <div class="fg"><label>低庫存警示值</label><input id="f-min" type="number" value="${s?s.min:5}" min="0"></div>
-        <div class="fg fg-full"><label>備註說明</label><textarea id="f-notes" rows="2">${s?s.notes:''}</textarea></div>
+        <div class="fg fg-full"><label>耗材名稱 *</label>
+          <input id="f-name" value="${s ? s.name : ''}" placeholder="名稱"></div>
+        <div class="fg"><label>類別</label>
+          <select id="f-cat"><option>文具</option><option>紙材</option><option>清潔</option><option>電器</option><option>其他</option></select></div>
+        <div class="fg"><label>存放位置</label>
+          <input id="f-loc" value="${s ? s.location : ''}" placeholder="例：A-1"></div>
+        <div class="fg"><label>初始庫存</label>
+          <input id="f-stock" type="number" value="${s ? s.stock : 0}" min="0"></div>
+        <div class="fg"><label>單位</label>
+          <input id="f-unit" value="${s ? s.unit : '個'}" placeholder="個"></div>
+        <div class="fg"><label>低庫存警示值</label>
+          <input id="f-min" type="number" value="${s ? s.min : 5}" min="0"></div>
+        <div class="fg fg-full"><label>備註說明</label>
+          <textarea id="f-notes" rows="2">${s ? s.notes : ''}</textarea></div>
         <div class="fg fg-full"><label>耗材照片（幫助辨識）</label>
           <div class="upload-zone" onclick="document.getElementById('fPhoto').click()">
-            <i class="ti ti-camera-plus"></i>
-            <p>點擊上傳照片</p>
+            <i class="ti ti-camera-plus"></i><p>點擊上傳照片</p>
           </div>
           <input type="file" id="fPhoto" accept="image/*" onchange="previewPhoto(this,'fPrev')">
-          <div id="fPrev" class="photo-prev">${s&&s.photo?`<img class="photo-thumb" src="${s.photo}">`:''}</div>
+          <div id="fPrev" class="photo-prev">${s && s.photo ? `<img class="photo-thumb" src="${s.photo}">` : ''}</div>
         </div>
       </div>
       <div class="mf">
         <button class="btn" onclick="closeModal()">取消</button>
-        <button class="btn btn-primary" onclick="${s?`saveEdit(${s.id})`:'saveAdd()'}"><i class="ti ti-check"></i> 儲存</button>
+        <button class="btn btn-primary" onclick="${s ? `saveEdit(${s.id})` : 'saveAdd()'}">
+          <i class="ti ti-check"></i> 儲存</button>
       </div>`;
     if (s) document.getElementById('f-cat').value = s.cat;
+
   } else if (type === 'txn') {
     const initId = sid || '';
     inner.innerHTML = `
-      <div class="mh"><h3>記錄出入庫</h3><button class="mc-btn" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
+      <div class="mh"><h3>記錄出入庫</h3>
+        <button class="mc-btn" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
       <div class="fg"><label>耗材 *</label>
-        <select id="t-item">${supplies.map(s=>`<option value="${s.id}"${s.id===initId?' selected':''}>${s.name}（${s.stock} ${s.unit}）</option>`).join('')}</select>
-      </div>
+        <select id="t-item">
+          ${supplies.map(s => `<option value="${s.id}"${s.id === initId ? ' selected' : ''}>${s.name}（${s.stock} ${s.unit}）</option>`).join('')}
+        </select></div>
       <div class="fg2">
-        <div class="fg"><label>類型 *</label><select id="t-type"><option value="in">入庫 ＋</option><option value="out">出庫 −</option></select></div>
-        <div class="fg"><label>數量 *</label><input id="t-qty" type="number" min="1" placeholder="0"></div>
-        <div class="fg"><label>操作人</label><input id="t-person" placeholder="姓名"></div>
-        <div class="fg"><label>日期</label><input id="t-date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
-        <div class="fg fg-full"><label>備註</label><input id="t-note" placeholder="用途、原因…"></div>
+        <div class="fg"><label>類型 *</label>
+          <select id="t-type"><option value="in">入庫 ＋</option><option value="out">出庫 −</option></select></div>
+        <div class="fg"><label>數量 *</label>
+          <input id="t-qty" type="number" min="1" placeholder="0"></div>
+        <div class="fg"><label>操作人</label>
+          <input id="t-person" placeholder="姓名"></div>
+        <div class="fg"><label>日期</label>
+          <input id="t-date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+        <div class="fg fg-full"><label>備註</label>
+          <input id="t-note" placeholder="用途、原因…"></div>
       </div>
       <div class="mf">
         <button class="btn" onclick="closeModal()">取消</button>
@@ -625,178 +725,279 @@ function openModal(type, sid) {
   overlay.classList.add('open');
 }
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
-document.getElementById('modalOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
-function previewPhoto(input, prevId) {
-  const f = input.files[0]; if (!f) return;
-  const r = new FileReader();
-  r.onload = e => { pendingPhoto = e.target.result; document.getElementById(prevId).innerHTML = `<img class="photo-thumb" src="${e.target.result}">`; };
-  r.readAsDataURL(f);
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// ─────────────────────────────────────────────
+//  localStorage：網址持久化（新增）
+// ─────────────────────────────────────────────
+const LS_URL_KEY = 'supply_gs_url';
+
+function loadSavedUrl() {
+  const saved = localStorage.getItem(LS_URL_KEY);
+  if (saved) {
+    document.getElementById('gsUrl').value = saved;
+    setGsStatus('idle', '已儲存網址，請測試連線');
+  }
 }
-function saveAdd() {
-  const name = document.getElementById('f-name').value.trim();
-  if (!name) return alert('請輸入耗材名稱');
-  supplies.push({id:nextId++, name, cat:document.getElementById('f-cat').value,
-    stock: parseInt(document.getElementById('f-stock').value)||0,
-    unit: document.getElementById('f-unit').value||'個',
-    min: parseInt(document.getElementById('f-min').value)||5,
-    location: document.getElementById('f-loc').value,
-    notes: document.getElementById('f-notes').value,
-    photo: pendingPhoto});
-  closeModal(); renderAll(); scheduleSync(); notify('✓ 已新增「' + name + '」');
+function saveUrlToStorage(url) {
+  localStorage.setItem(LS_URL_KEY, url);
 }
-function saveEdit(id) {
-  const s = supplies.find(x => x.id === id); if (!s) return;
-  const name = document.getElementById('f-name').value.trim();
-  if (!name) return alert('請輸入耗材名稱');
-  s.name = name; s.cat = document.getElementById('f-cat').value;
-  s.stock = parseInt(document.getElementById('f-stock').value)||0;
-  s.unit = document.getElementById('f-unit').value||'個';
-  s.min = parseInt(document.getElementById('f-min').value)||5;
-  s.location = document.getElementById('f-loc').value;
-  s.notes = document.getElementById('f-notes').value;
-  if (pendingPhoto) s.photo = pendingPhoto;
-  closeModal(); renderAll(); selectedId = null; document.getElementById('detailPanel').classList.remove('open');
-  scheduleSync(); notify('✓ 已更新「' + name + '」');
-}
-function editItem(id) { openModal('edit', id); }
-function deleteItem(id) {
-  const s = supplies.find(x => x.id === id); if (!s) return;
-  if (!confirm('確定刪除「' + s.name + '」？')) return;
-  supplies = supplies.filter(x => x.id !== id);
-  if (selectedId === id) { selectedId = null; document.getElementById('detailPanel').classList.remove('open'); }
-  renderAll(); scheduleSync(); notify('已刪除「' + s.name + '」');
-}
-function openTxnFor(id) { closeModal(); setTimeout(() => openModal('txn', id), 50); }
-function submitTxn() {
-  const id = parseInt(document.getElementById('t-item').value);
-  const type = document.getElementById('t-type').value;
-  const qty = parseInt(document.getElementById('t-qty').value)||0;
-  const person = document.getElementById('t-person').value||'—';
-  const date = document.getElementById('t-date').value;
-  const note = document.getElementById('t-note').value;
-  if (!qty) return alert('請輸入數量');
-  const s = supplies.find(x => x.id === id); if (!s) return;
-  if (type === 'out' && qty > s.stock) return alert('庫存不足！目前：' + s.stock + ' ' + s.unit);
-  s.stock += type === 'in' ? qty : -qty;
-  logs.unshift({date, name: s.name, type, qty, unit: s.unit, person, note});
-  closeModal(); renderAll(); scheduleSync();
-  notify((type==='in'?'↑ 入庫':'↓ 出庫') + ' ' + s.name + ' ' + qty + s.unit);
-}
-function uploadPhoto(event, id) {
-  const f = event.target.files[0]; if (!f) return;
-  const r = new FileReader();
-  r.onload = e => { const s = supplies.find(x => x.id === id); if (s) { s.photo = e.target.result; renderInventory(); } };
-  r.readAsDataURL(f);
-}
-async function gsGet(params) {
+// 每次輸入網址時自動儲存
+document.getElementById('gsUrl').addEventListener('input', function() {
+  const v = this.value.trim();
+  if (v) saveUrlToStorage(v);
+});
+
+// ─────────────────────────────────────────────
+//  Google Sheets API
+// ─────────────────────────────────────────────
+function getGsUrl() {
   const url = document.getElementById('gsUrl').value.trim();
   if (!url) { alert('請先輸入 Apps Script 網址'); return null; }
+  return url;
+}
+async function gsGet(params) {
+  const url = getGsUrl(); if (!url) return null;
   try {
     const res = await fetch(url + '?' + new URLSearchParams(params));
     return await res.json();
-  } catch(e) { addSyncLog('❌ 失敗：' + e.message); setGsStatus('err', '連線失敗'); return null; }
+  } catch (e) {
+    addSyncLog('❌ GET 失敗：' + e.message);
+    setGsStatus('err', '連線失敗');
+    return null;
+  }
 }
-// 單筆 API，fire-and-forget（跟傳情系統一樣）
-function apiPost(params) {
-  const url = document.getElementById('gsUrl').value.trim();
-  if (!url) return;
-  fetch(url, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify(params)
-  }).catch(e => addSyncLog('❌ ' + e.message));
-}
-
-// 新增耗材時
-function saveAdd() {
-  // ... 原本的邏輯 ...
-  supplies.push(newItem);
-  apiPost({ action: 'addSupply', supply: newItem });  // 只送這一筆
-  renderAll();
-}
-
-// 更新耗材時
-function saveEdit(id) {
-  // ... 原本的邏輯 ...
-  apiPost({ action: 'updateSupply', supply: updatedItem });
-}
-
-// 刪除耗材時
-function deleteItem(id) {
-  // ... 原本的邏輯 ...
-  apiPost({ action: 'deleteSupply', id });
-}
-
-// 出入庫時
-function submitTxn() {
-  // ... 原本的邏輯 ...
-  apiPost({ action: 'updateSupply', supply: { id: s.id, stock: s.stock } });
-  apiPost({ action: 'addLog', log: newLog });
+async function gsPost(body) {
+  const url = getGsUrl(); if (!url) return null;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body)
+    });
+    return await res.json();
+  } catch (e) {
+    addSyncLog('❌ POST 失敗：' + e.message);
+    setGsStatus('err', '同步失敗');
+    return null;
+  }
 }
 async function gsTest() {
   addSyncLog('測試連線中…');
-  const r = await gsGet({action:'ping'});
-  if (r && r.status === 'ok') { setGsStatus('ok', '連線成功'); addSyncLog('✅ 連線正常'); notify('✓ Google Sheets 連線成功'); }
-  else if (r) { setGsStatus('err', '回應異常'); addSyncLog('⚠️ ' + JSON.stringify(r)); }
+  const r = await gsGet({ action: 'ping' });
+  if (r && r.status === 'ok') {
+    setGsStatus('ok', '連線成功');
+    addSyncLog('✅ 連線正常');
+    notify('✓ Google Sheets 連線成功');
+    saveUrlToStorage(document.getElementById('gsUrl').value.trim());
+  } else if (r) {
+    setGsStatus('err', '回應異常');
+    addSyncLog('⚠️ ' + JSON.stringify(r));
+  }
 }
 async function gsPull() {
   addSyncLog('載入資料中…');
-  const r = await gsGet({action:'getAll'});
+  const r = await gsGet({ action: 'getAll' });
   if (r && r.supplies) {
-    supplies = r.supplies.map(s => ({...s, stock:Number(s.stock)||0, min:Number(s.min)||0, id:Number(s.id)||0}));
-    logs = r.logs || [];
-    nextId = Math.max(...supplies.map(s=>s.id), 0) + 1;
+    supplies = r.supplies.map(s => ({
+      ...s,
+      stock: Number(s.stock) || 0,
+      min:   Number(s.min)   || 0,
+      id:    Number(s.id)    || 0
+    }));
+    logs   = r.logs || [];
+    nextId = Math.max(...supplies.map(s => s.id), 0) + 1;
     setGsStatus('ok', '已載入');
     document.getElementById('gsLastSync').textContent = '上次：' + new Date().toLocaleTimeString();
     addSyncLog('✅ 載入 ' + supplies.length + ' 項耗材，' + logs.length + ' 筆記錄');
-    renderAll(); notify('✓ 已從 Sheets 載入最新資料');
-  } else if (r) { addSyncLog('⚠️ 回應：' + JSON.stringify(r)); }
+    renderAll();
+    notify('✓ 已從 Sheets 載入最新資料');
+  } else if (r) {
+    addSyncLog('⚠️ 回應：' + JSON.stringify(r));
+  }
 }
 async function gsPush() {
   if (isSyncing) { notify('同步中，請稍候…'); return; }
   clearTimeout(autoSyncTimer);
   addSyncLog('手動同步…');
-  await doSync();
-  notify('✓ 已同步到 Google Sheets');
+  const ok = await doSync();
+  if (ok) notify('✓ 已同步到 Google Sheets');
 }
-function copyCode() {
-  const code = document.getElementById('codeBlock').innerText;
-  navigator.clipboard.writeText(code).then(() => notify('✓ 程式碼已複製！')).catch(() => {
-    const ta = document.createElement('textarea');
-    ta.value = code; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-    notify('✓ 程式碼已複製！');
-  });
-}
-function renderAll() { updateStats(); renderInventory(); renderLog(); }
 
-let autoSyncTimer = null;
-let isSyncing = false;
+// ─────────────────────────────────────────────
+//  照片上傳到 Drive（新增）
+//  先把 base64 送給 Apps Script → 上傳到 Drive → 回傳公開 URL → 存回 supply
+// ─────────────────────────────────────────────
+async function uploadPhotoToDrive(supplyId, base64DataUrl) {
+  const url = document.getElementById('gsUrl').value.trim();
+  if (!url) return null;   // 沒連線就不上傳，保留本地預覽
+  addSyncLog('📷 上傳照片中…');
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'uploadPhoto', id: supplyId, photo: base64DataUrl })
+    });
+    const r = await res.json();
+    if (r && r.url) {
+      addSyncLog('✅ 照片上傳完成');
+      return r.url;
+    } else {
+      addSyncLog('⚠️ 照片上傳失敗：' + JSON.stringify(r));
+      return null;
+    }
+  } catch (e) {
+    addSyncLog('❌ 照片上傳錯誤：' + e.message);
+    return null;
+  }
+}
+
+// 卡片上的相機按鈕：上傳後立即同步照片 URL
+async function uploadPhoto(event, id) {
+  const f = event.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = async e => {
+    const base64 = e.target.result;
+    const s = supplies.find(x => x.id === id); if (!s) return;
+    // 先顯示本地預覽
+    s.photo = base64;
+    renderInventory();
+    // 若已連線，上傳到 Drive 並換成公開 URL
+    const gsUrl = document.getElementById('gsUrl').value.trim();
+    if (gsUrl) {
+      const driveUrl = await uploadPhotoToDrive(id, base64);
+      if (driveUrl) {
+        s.photo = driveUrl;
+        renderInventory();
+        scheduleSync();
+      }
+    }
+  };
+  r.readAsDataURL(f);
+}
+
+// Modal 裡的照片預覽（保持本地預覽，儲存時一起送）
+function previewPhoto(input, prevId) {
+  const f = input.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    pendingPhoto = e.target.result;
+    document.getElementById(prevId).innerHTML = `<img class="photo-thumb" src="${e.target.result}">`;
+  };
+  r.readAsDataURL(f);
+}
+
+// saveAdd / saveEdit 儲存時，若有 base64 pendingPhoto 且已連線 → 先上傳到 Drive
+async function resolvePhoto(supplyId) {
+  if (!pendingPhoto) return null;
+  if (!pendingPhoto.startsWith('data:')) return pendingPhoto; // 已是 URL，直接用
+  const gsUrl = document.getElementById('gsUrl').value.trim();
+  if (gsUrl) {
+    const driveUrl = await uploadPhotoToDrive(supplyId, pendingPhoto);
+    if (driveUrl) return driveUrl;
+  }
+  return pendingPhoto; // 沒連線就保留 base64（本機看得到，但別人看不到）
+}
+
+// ─────────────────────────────────────────────
+//  自動同步（3 秒防抖）
+// ─────────────────────────────────────────────
 function scheduleSync() {
   const url = document.getElementById('gsUrl').value.trim();
   if (!url) return;
   clearTimeout(autoSyncTimer);
   autoSyncTimer = setTimeout(() => doSync(), 3000);
 }
-async function doSync(retry) {
-  if (isSyncing) { autoSyncTimer = setTimeout(() => doSync(), 2000); return; }
+async function doSync(isRetry) {
+  if (isSyncing) {
+    autoSyncTimer = setTimeout(() => doSync(), 2000);
+    return false;
+  }
   isSyncing = true;
-  addSyncLog((retry ? '重試' : '自動') + '同步中…');
-  const clean = supplies.map(s => ({...s, photo: s.photo || ''}));
-  const r = await gsPost({action:'saveAll', data:{supplies:clean, logs}});
+  addSyncLog((isRetry ? '重試' : '自動') + '同步中…');
+  // base64 照片不送（太大）；Drive URL 正常送
+  const clean = supplies.map(s => ({
+    ...s,
+    photo: s.photo && !s.photo.startsWith('data:') ? s.photo : ''
+  }));
+  const r = await gsPost({ action: 'saveAll', data: { supplies: clean, logs } });
   isSyncing = false;
   if (r && r.saved) {
     setGsStatus('ok', '已同步');
     document.getElementById('gsLastSync').textContent = '上次：' + new Date().toLocaleTimeString();
     addSyncLog('✅ 同步完成');
-  } else if (!retry) {
+    return true;
+  } else if (!isRetry) {
     addSyncLog('⚠️ 失敗，3秒後重試…');
     setTimeout(() => doSync(true), 3000);
+    return false;
   } else {
     setGsStatus('err', '同步失敗');
     addSyncLog('❌ 重試失敗，請確認部署網址是否為最新版本');
+    return false;
   }
 }
 
+// ─────────────────────────────────────────────
+//  CRUD：saveAdd / saveEdit 改為 async（照片上傳）
+// ─────────────────────────────────────────────
+async function saveAdd() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) return alert('請輸入耗材名稱');
+  const id = nextId++;
+  const photo = await resolvePhoto(id);
+  const newItem = {
+    id, name,
+    cat:      document.getElementById('f-cat').value,
+    stock:    parseInt(document.getElementById('f-stock').value) || 0,
+    unit:     document.getElementById('f-unit').value || '個',
+    min:      parseInt(document.getElementById('f-min').value) || 5,
+    location: document.getElementById('f-loc').value,
+    notes:    document.getElementById('f-notes').value,
+    photo:    photo || ''
+  };
+  supplies.push(newItem);
+  closeModal();
+  renderAll();
+  scheduleSync();
+  notify('✓ 已新增「' + name + '」');
+}
+async function saveEdit(id) {
+  const s = supplies.find(x => x.id === id); if (!s) return;
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) return alert('請輸入耗材名稱');
+  s.name     = name;
+  s.cat      = document.getElementById('f-cat').value;
+  s.stock    = parseInt(document.getElementById('f-stock').value) || 0;
+  s.unit     = document.getElementById('f-unit').value || '個';
+  s.min      = parseInt(document.getElementById('f-min').value) || 5;
+  s.location = document.getElementById('f-loc').value;
+  s.notes    = document.getElementById('f-notes').value;
+  if (pendingPhoto) s.photo = await resolvePhoto(id) || s.photo;
+  closeModal();
+  selectedId = null;
+  document.getElementById('detailPanel').classList.remove('open');
+  renderAll();
+  scheduleSync();
+  notify('✓ 已更新「' + name + '」');
+}
+
+// ─────────────────────────────────────────────
+//  複製程式碼 & 導航
+// ─────────────────────────────────────────────
+function copyCode() {
+  const code = document.getElementById('codeBlock').innerText;
+  navigator.clipboard.writeText(code)
+    .then(() => notify('✓ 程式碼已複製！'))
+    .catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = code; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      notify('✓ 程式碼已複製！');
+    });
+}
 document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
@@ -805,6 +1006,9 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + pg));
   });
 });
+
+// 啟動：載入儲存的網址
+loadSavedUrl();
 renderAll();
 </script>
 </body>
