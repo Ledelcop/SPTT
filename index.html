@@ -6,7 +6,7 @@
 <title>社團耗材管理系統</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css">
+<!-- Tabler icon font removed: using inline SVG -->
 <style>
 :root{
   --bg:#ffffff;--bg2:#f8f7f4;--bg3:#f1f0ec;
@@ -175,18 +175,18 @@ input[type=file]{display:none}
 <div class="layout">
   <nav class="sidebar">
     <div class="sidebar-logo">
-      <i class="ti ti-box"></i>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 4.5v9L12 21l-9-4.5v-9L12 3z"/><polyline points="12 3 12 12"/><line x1="3" y1="7.5" x2="12" y2="12"/><line x1="21" y1="7.5" x2="12" y2="12"/></svg>
       <span>耗材管理</span>
     </div>
     <div class="nav-section">主選單</div>
     <button class="nav-item active" data-page="inventory">
-      <i class="ti ti-layout-grid"></i> 庫存總覽
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> 庫存總覽
     </button>
     <button class="nav-item" data-page="log">
-      <i class="ti ti-list"></i> 出入庫記錄
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg> 出入庫記錄
     </button>
     <button class="nav-item" data-page="gs">
-      <i class="ti ti-brand-google"></i> Google Sheets 串接
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.945 11a9 9 0 1 1 -3.284 -5.997l-2.655 2.392a5.5 5.5 0 1 0 2.119 6.605h-4.125v-3h7.945z"/></svg> Google Sheets 串接
     </button>
     <div class="sidebar-footer">
       <div style="font-size:12px;color:var(--text3);display:flex;align-items:center">
@@ -202,8 +202,8 @@ input[type=file]{display:none}
       <div class="topbar">
         <div class="page-title">庫存總覽</div>
         <div class="topbar-actions">
-          <button class="btn btn-sm" onclick="openModal('add')"><i class="ti ti-plus"></i> 新增耗材</button>
-          <button class="btn btn-sm btn-primary" onclick="openModal('txn')"><i class="ti ti-arrows-exchange"></i> 出入庫</button>
+          <button class="btn btn-sm" onclick="openModal('add')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 新增耗材</button>
+          <button class="btn btn-sm btn-primary" onclick="openModal('txn')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg> 出入庫</button>
         </div>
       </div>
       <div class="stats-grid">
@@ -255,7 +255,7 @@ input[type=file]{display:none}
     <div class="page" id="page-log">
       <div class="topbar">
         <div class="page-title">出入庫記錄</div>
-        <button class="btn btn-sm btn-primary" onclick="openModal('txn')"><i class="ti ti-plus"></i> 新增記錄</button>
+        <button class="btn btn-sm btn-primary" onclick="openModal('txn')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 新增記錄</button>
       </div>
       <div class="toolbar">
         <input type="text" id="logSearch" placeholder="搜尋耗材或操作人…" oninput="renderLog()" style="max-width:240px">
@@ -286,24 +286,24 @@ input[type=file]{display:none}
       </div>
 
       <div class="gs-card">
-        <div class="gs-title"><i class="ti ti-plug" style="font-size:16px"></i> 連線設定</div>
+        <div class="gs-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l-4 4 7 7 4-4"/><path d="M17 17l4-4-7-7-4 4"/><line x1="8" y1="16" x2="16" y2="8"/><line x1="3" y1="21" x2="6" y2="18"/></svg> 連線設定</div>
         <div class="fg"><label>Apps Script Web App 網址</label>
           <input type="text" id="gsUrl" placeholder="https://script.google.com/macros/s/…/exec">
         </div>
         <div class="gs-btn-row">
-          <button class="btn btn-sm" onclick="gsTest()"><i class="ti ti-plug"></i> 測試連線</button>
-          <button class="btn btn-sm" onclick="gsPull()"><i class="ti ti-cloud-download"></i> 從 Sheets 載入</button>
-          <button class="btn btn-sm btn-primary" onclick="gsPush()"><i class="ti ti-cloud-upload"></i> 同步到 Sheets</button>
+          <button class="btn btn-sm" onclick="gsTest()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l-4 4 7 7 4-4"/><path d="M17 17l4-4-7-7-4 4"/><line x1="8" y1="16" x2="16" y2="8"/><line x1="3" y1="21" x2="6" y2="18"/></svg> 測試連線</button>
+          <button class="btn btn-sm" onclick="gsPull()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 18a3.5 3.5 0 0 0 0-7h-0.5A5 5 0 1 0 6 13.5"/><polyline points="12 13 12 21"/><polyline points="9 18 12 21 15 18"/></svg> 從 Sheets 載入</button>
+          <button class="btn btn-sm btn-primary" onclick="gsPush()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 18a3.5 3.5 0 0 0 0-7h-0.5A5 5 0 1 0 6 13.5"/><polyline points="12 21 12 13"/><polyline points="9 16 12 13 15 16"/></svg> 同步到 Sheets</button>
         </div>
         <div class="gs-status-row">
-          <span class="gs-badge gs-idle" id="gsBadge"><i class="ti ti-circle" style="font-size:10px"></i> 未連線</span>
+          <span class="gs-badge gs-idle" id="gsBadge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg> 未連線</span>
           <span style="font-size:12px;color:var(--text3)" id="gsLastSync"></span>
         </div>
         <div class="sync-log" id="syncLog"></div>
       </div>
 
       <div class="gs-card">
-        <div class="gs-title"><i class="ti ti-code" style="font-size:16px"></i> 部署 Apps Script（一次性設定）</div>
+        <div class="gs-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 8 3 12 7 16"/><polyline points="17 8 21 12 17 16"/><line x1="14" y1="4" x2="10" y2="20"/></svg> 部署 Apps Script（一次性設定）</div>
         <div class="step-list">
           <div class="step-item"><div class="step-num">1</div><div class="step-text">開啟你的 Google 試算表，確認有兩個工作表分別命名為 <strong>「耗材庫存」</strong> 和 <strong>「出入庫記錄」</strong></div></div>
           <div class="step-item"><div class="step-num">2</div><div class="step-text">點上方選單 <strong>擴充功能 → Apps Script</strong>，刪除舊內容，貼上下方程式碼，並把 <strong>SS_ID</strong> 換成你的試算表 ID</div></div>
@@ -450,7 +450,7 @@ function ok(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }</div>
-        <button class="btn btn-sm" style="margin-top:.75rem" onclick="copyCode()"><i class="ti ti-copy"></i> 複製程式碼</button>
+        <button class="btn btn-sm" style="margin-top:.75rem" onclick="copyCode()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg> 複製程式碼</button>
       </div>
     </div>
 
@@ -504,7 +504,12 @@ function setGsStatus(type, text) {
   const b = document.getElementById('gsBadge');
   b.className = 'gs-badge gs-' + type;
   const icon = type === 'ok' ? 'check' : type === 'err' ? 'x' : 'circle';
-  b.innerHTML = `<i class="ti ti-${icon}" style="font-size:10px"></i> ${text}`;
+  const iconSvgs = {
+    check: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>',
+    x:     '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>',
+    circle:'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>'
+  };
+  b.innerHTML = (iconSvgs[icon] || '') + ' ' + text;
   gsConnected = (type === 'ok');
   document.getElementById('sideGsDot').className = 'gs-dot' + (gsConnected ? ' connected' : '');
   document.getElementById('sideGsText').textContent = gsConnected ? 'Sheets 已連線' : '尚未連線';
@@ -548,7 +553,7 @@ function renderGrid(data) {
     return `<div class="supply-card" onclick="selectItem(${s.id})">
       <div class="card-img">${img}
         <label class="card-img-btn" onclick="event.stopPropagation()" title="上傳照片">
-          <i class="ti ti-camera" style="font-size:13px;color:var(--text2)"></i>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8l-4-5H9z"/><circle cx="12" cy="13" r="3"/></svg>
           <input type="file" accept="image/*" onchange="uploadPhoto(event,${s.id})">
         </label>
       </div>
@@ -562,7 +567,7 @@ function renderGrid(data) {
         </div>
       </div>
     </div>`;
-  }).join('') : '<div class="empty-state"><i class="ti ti-box-off"></i>無符合耗材</div>';
+  }).join('') : '<div class="empty-state"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 4.5v9L12 21l-9-4.5v-9L12 3z"/><polyline points="12 3 12 12"/><line x1="3" y1="7.5" x2="12" y2="12"/><line x1="21" y1="7.5" x2="12" y2="12"/></svg>無符合耗材</div>';
 }
 function renderList(data) {
   const body = document.getElementById('listBody');
@@ -581,11 +586,11 @@ function renderList(data) {
       <td style="color:var(--text3);font-size:12px">${s.location || '—'}</td>
       <td>
         <button class="btn btn-sm" onclick="event.stopPropagation();editItem(${s.id})" title="編輯">
-          <i class="ti ti-edit" style="font-size:12px"></i>
+          編輯
         </button>
         <button class="btn btn-sm btn-danger" style="margin-left:3px"
           onclick="event.stopPropagation();deleteItem(${s.id})" title="刪除">
-          <i class="ti ti-trash" style="font-size:12px"></i>
+          刪除
         </button>
       </td>
     </tr>`;
@@ -613,10 +618,10 @@ function selectItem(id) {
       <div class="detail-row"><span class="detail-label">警示值</span><span>${s.min} ${s.unit}</span></div>
       ${s.notes ? `<div class="detail-row"><span class="detail-label">備註</span><span style="color:var(--text2)">${s.notes}</span></div>` : ''}
       <div style="display:flex;gap:6px;margin-top:.75rem;flex-wrap:wrap">
-        <button class="btn btn-sm" onclick="openTxnFor(${s.id})"><i class="ti ti-arrows-exchange" style="font-size:12px"></i> 出入庫</button>
-        <button class="btn btn-sm" onclick="editItem(${s.id})"><i class="ti ti-edit" style="font-size:12px"></i> 編輯</button>
+        <button class="btn btn-sm" onclick="openTxnFor(${s.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg> 出入庫</button>
+        <button class="btn btn-sm" onclick="editItem(${s.id})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 編輯</button>
         <button class="btn btn-sm" onclick="document.getElementById('detailPanel').classList.remove('open');selectedId=null">
-          <i class="ti ti-x" style="font-size:12px"></i> 關閉
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg> 關閉
         </button>
       </div>
     </div>`;
@@ -696,7 +701,7 @@ function openModal(type, sid) {
     const s = type === 'edit' ? supplies.find(x => x.id === sid) : null;
     inner.innerHTML = `
       <div class="mh"><h3>${s ? '編輯耗材' : '新增耗材'}</h3>
-        <button class="mc-btn" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
+        <button class="mc-btn" onclick="closeModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button></div>
       <div class="fg2">
         <div class="fg fg-full"><label>耗材名稱 *</label>
           <input id="f-name" value="${s ? s.name : ''}" placeholder="名稱"></div>
@@ -714,7 +719,7 @@ function openModal(type, sid) {
           <textarea id="f-notes" rows="2">${s ? s.notes : ''}</textarea></div>
         <div class="fg fg-full"><label>耗材照片（幫助辨識）</label>
           <div class="upload-zone" onclick="document.getElementById('fPhoto').click()">
-            <i class="ti ti-camera-plus"></i><p>點擊上傳照片</p>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8l-4-5H9z"/><circle cx="12" cy="13" r="3"/></svg><p>點擊上傳照片</p>
           </div>
           <input type="file" id="fPhoto" accept="image/*" onchange="previewPhoto(this,'fPrev')">
           <div id="fPrev" class="photo-prev">${s && s.photo ? `<img class="photo-thumb" src="${s.photo}">` : ''}</div>
@@ -723,7 +728,7 @@ function openModal(type, sid) {
       <div class="mf">
         <button class="btn" onclick="closeModal()">取消</button>
         <button class="btn btn-primary" onclick="${s ? `saveEdit(${s.id})` : 'saveAdd()'}">
-          <i class="ti ti-check"></i> 儲存</button>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg> 儲存</button>
       </div>`;
     if (s) document.getElementById('f-cat').value = s.cat;
 
@@ -731,7 +736,7 @@ function openModal(type, sid) {
     const initId = sid || '';
     inner.innerHTML = `
       <div class="mh"><h3>記錄出入庫</h3>
-        <button class="mc-btn" onclick="closeModal()"><i class="ti ti-x"></i></button></div>
+        <button class="mc-btn" onclick="closeModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button></div>
       <div class="fg"><label>耗材 *</label>
         <select id="t-item">
           ${supplies.map(s => `<option value="${s.id}"${s.id === initId ? ' selected' : ''}>${s.name}（${s.stock} ${s.unit}）</option>`).join('')}
@@ -750,7 +755,7 @@ function openModal(type, sid) {
       </div>
       <div class="mf">
         <button class="btn" onclick="closeModal()">取消</button>
-        <button class="btn btn-primary" onclick="submitTxn()"><i class="ti ti-check"></i> 確認</button>
+        <button class="btn btn-primary" onclick="submitTxn()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg> 確認</button>
       </div>`;
   }
   overlay.classList.add('open');
