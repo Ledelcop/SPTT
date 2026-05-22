@@ -218,7 +218,7 @@ input[type=file]{display:none}
           <input type="text" id="search" placeholder="搜尋耗材名稱…" oninput="renderInventory()">
           <select id="catFilter" onchange="renderInventory()">
             <option value="">全部類別</option>
-            <option>貼紥類</option><option>耗材</option><option>團服</option><option>工具</option><option>其他</option>
+            <option>貼紮</option><option>耗材</option><option>工具</option><option>其他</option>
           </select>
           <select id="statusFilter" onchange="renderInventory()">
             <option value="">全部狀態</option>
@@ -467,28 +467,18 @@ function ok(obj) {
 // ─────────────────────────────────────────────
 //  常數 & 初始資料
 // ─────────────────────────────────────────────
-const EMOJIS = {文具:'✏️',紙材:'📄',清潔:'🧹',電器:'🔌',其他:'📦'};
+const EMOJIS = {貼紮:'🩹',耗材:'📦',工具:'🔧',其他:'🗂️'};
 const ST  = (s, m) => s <= 0 ? 'low' : s <= m ? 'warn' : 'ok';
 const SL  = {low:'不足', warn:'偏低', ok:'充足'};
 const SB  = {low:'b-low', warn:'b-warn', ok:'b-ok'};
 
 let supplies = [
-  {id:1,name:'A4 影印紙',cat:'紙材',stock:120,unit:'張',min:50,location:'A-1',notes:'雷射列印用',photo:''},
-  {id:2,name:'白板筆（黑）',cat:'文具',stock:3,unit:'支',min:5,location:'B-2',notes:'注意蓋好筆蓋',photo:''},
-  {id:3,name:'釘書機',cat:'文具',stock:8,unit:'個',min:2,location:'A-3',notes:'',photo:''},
-  {id:4,name:'透明膠帶',cat:'文具',stock:15,unit:'捲',min:5,location:'A-2',notes:'',photo:''},
-  {id:5,name:'酒精濕紙巾',cat:'清潔',stock:0,unit:'包',min:3,location:'C-1',notes:'清潔桌面用',photo:''},
-  {id:6,name:'延長線',cat:'電器',stock:6,unit:'條',min:2,location:'D-1',notes:'最長 3m',photo:''},
-  {id:7,name:'美工刀',cat:'文具',stock:10,unit:'把',min:3,location:'B-1',notes:'',photo:''},
-  {id:8,name:'垃圾袋（大）',cat:'清潔',stock:4,unit:'包',min:5,location:'C-2',notes:'',photo:''},
+  
 ];
 let logs = [
-  {date:'2025-05-20',name:'A4 影印紙',type:'in',qty:500,unit:'張',person:'王小明',note:'定期補貨'},
-  {date:'2025-05-19',name:'白板筆（黑）',type:'out',qty:2,unit:'支',person:'陳美華',note:'活動使用'},
-  {date:'2025-05-18',name:'延長線',type:'in',qty:3,unit:'條',person:'林志遠',note:'採購'},
-  {date:'2025-05-17',name:'酒精濕紙巾',type:'out',qty:3,unit:'包',person:'李昕妤',note:'活動清潔'},
+
 ];
-let nextId     = 9;
+let nextId     = 1;
 let viewMode   = 'grid';
 let selectedId = null;
 let pendingPhoto = '';
@@ -670,9 +660,9 @@ function openModal(type, sid) {
         <div class="fg fg-full"><label>耗材名稱 *</label>
           <input id="f-name" value="${s ? s.name : ''}" placeholder="名稱"></div>
         <div class="fg"><label>類別</label>
-          <select id="f-cat"><option>文具</option><option>紙材</option><option>清潔</option><option>電器</option><option>其他</option></select></div>
+          <select id="f-cat"><option>貼紮</option><option>耗材</option><option>工具</option><option>其他</option></select></div>
         <div class="fg"><label>存放位置</label>
-          <input id="f-loc" value="${s ? s.location : ''}" placeholder="例：第一格櫃子"></div>
+          <input id="f-loc" value="${s ? s.location : ''}" placeholder="例：A-1"></div>
         <div class="fg"><label>初始庫存</label>
           <input id="f-stock" type="number" value="${s ? s.stock : 0}" min="0"></div>
         <div class="fg"><label>單位</label>
