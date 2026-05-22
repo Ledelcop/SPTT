@@ -305,12 +305,12 @@ input[type=file]{display:none}
       <div class="gs-card">
         <div class="gs-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 8 3 12 7 16"/><polyline points="17 8 21 12 17 16"/><line x1="14" y1="4" x2="10" y2="20"/></svg> 部署 Apps Script（一次性設定）</div>
         <div class="step-list">
-          <div class="step-item"><div class="step-num">1</div><div class="step-text">開啟你的 Google 試算表，確認有兩個工作表分別命名為 <strong>「耗材庫存」</strong> 和 <strong>「出入庫記錄」</strong></div></div>
-          <div class="step-item"><div class="step-num">2</div><div class="step-text">點上方選單 <strong>擴充功能 → Apps Script</strong>，刪除舊內容，貼上下方程式碼，並把 <strong>SS_ID</strong> 換成你的試算表 ID</div></div>
+          <div class="step-item"><div class="step-num">1</div><div class="step-text">開啟SPTT的 Google 試算表，確認有兩個工作表分別命名為 <strong>「耗材庫存」</strong> 和 <strong>「出入庫記錄」</strong></div></div>
+          <div class="step-item"><div class="step-num">2</div><div class="step-text">點上方選單 <strong>擴充功能 → Apps Script</strong>，刪除舊內容，貼上下方程式碼，並把 <strong>SS_ID</strong> 換成試算表 ID</div></div>
           <div class="step-item"><div class="step-num">3</div><div class="step-text"><strong>如何找到試算表 ID：</strong>開啟 Google 試算表，網址列長這樣：<br><code style="font-size:11px;background:var(--bg2);padding:2px 6px;border-radius:4px">https://docs.google.com/spreadsheets/d/<strong>【這段就是ID】</strong>/edit</code></div></div>
           <div class="step-item"><div class="step-num">4</div><div class="step-text">點 <strong>部署 → 新增部署 → 類型選「網頁應用程式」</strong><br>執行身分：<strong>我</strong>　　存取權：<strong>所有人</strong>（含匿名）</div></div>
           <div class="step-item"><div class="step-num">5</div><div class="step-text">複製部署後的網址，貼到上方「Apps Script Web App 網址」欄位，按<strong>測試連線</strong>確認成功後，按<strong>同步到 Sheets</strong></div></div>
-          <div class="step-item"><div class="step-num">6</div><div class="step-text">下次接手的社員只需填入網址，按「從 Sheets 載入」就能取回所有資料 ✓</div></div>
+          <div class="step-item"><div class="step-num">6</div><div class="step-text">下次接手的團長只需填入網址，按「從 Sheets 載入」就能取回所有資料 ✓</div></div>
         </div>
         <div class="code-block" id="codeBlock">const SS_ID        = '你的試算表ID';  // ← 換成你的ID
 const SUPPLY_SHEET = '耗材庫存';
