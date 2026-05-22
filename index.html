@@ -730,33 +730,19 @@ document.getElementById('modalOverlay').addEventListener('click', e => {
 });
 
 // ─────────────────────────────────────────────
-//  localStorage：網址持久化（新增）
+//  ★ 在這裡填入你的 Apps Script 網址
 // ─────────────────────────────────────────────
-const LS_URL_KEY = 'supply_gs_url';
-
-function loadSavedUrl() {
-  const saved = localStorage.getItem(LS_URL_KEY);
-  if (saved) {
-    document.getElementById('gsUrl').value = saved;
-    setGsStatus('idle', '已儲存網址，請測試連線');
-  }
-}
-function saveUrlToStorage(url) {
-  localStorage.setItem(LS_URL_KEY, url);
-}
-// 每次輸入網址時自動儲存
-document.getElementById('gsUrl').addEventListener('input', function() {
-  const v = this.value.trim();
-  if (v) saveUrlToStorage(v);
-});
+const GS_URL = 'https://script.google.com/macros/s/AKfycbyHgikqgn1OjifRkNo7dxH1cD-4FG_YL2Js6OVmOzMSGbu9dRKVhhMpiVhgWM1VRflK5A/exec';
 
 // ─────────────────────────────────────────────
 //  Google Sheets API
 // ─────────────────────────────────────────────
 function getGsUrl() {
-  const url = document.getElementById('gsUrl').value.trim();
-  if (!url) { alert('請先輸入 Apps Script 網址'); return null; }
-  return url;
+  if (!GS_URL || GS_URL.includes('換成你的網址')) {
+    alert('請先在程式碼頂端的 GS_URL 填入正確網址');
+    return null;
+  }
+  return GS_URL;
 }
 async function gsGet(params) {
   const url = getGsUrl(); if (!url) return null;
@@ -791,7 +777,6 @@ async function gsTest() {
     setGsStatus('ok', '連線成功');
     addSyncLog('✅ 連線正常');
     notify('✓ Google Sheets 連線成功');
-    saveUrlToStorage(document.getElementById('gsUrl').value.trim());
   } else if (r) {
     setGsStatus('err', '回應異常');
     addSyncLog('⚠️ ' + JSON.stringify(r));
@@ -831,7 +816,7 @@ async function gsPush() {
 //  先把 base64 送給 Apps Script → 上傳到 Drive → 回傳公開 URL → 存回 supply
 // ─────────────────────────────────────────────
 async function uploadPhotoToDrive(supplyId, base64DataUrl) {
-  const url = document.getElementById('gsUrl').value.trim();
+  const url = GS_URL;
   if (!url) return null;   // 沒連線就不上傳，保留本地預覽
   addSyncLog('📷 上傳照片中…');
   try {
@@ -865,7 +850,7 @@ async function uploadPhoto(event, id) {
     s.photo = base64;
     renderInventory();
     // 若已連線，上傳到 Drive 並換成公開 URL
-    const gsUrl = document.getElementById('gsUrl').value.trim();
+    const gsUrl = GS_URL;
     if (gsUrl) {
       const driveUrl = await uploadPhotoToDrive(id, base64);
       if (driveUrl) {
@@ -893,7 +878,7 @@ function previewPhoto(input, prevId) {
 async function resolvePhoto(supplyId) {
   if (!pendingPhoto) return null;
   if (!pendingPhoto.startsWith('data:')) return pendingPhoto; // 已是 URL，直接用
-  const gsUrl = document.getElementById('gsUrl').value.trim();
+  const gsUrl = GS_URL;
   if (gsUrl) {
     const driveUrl = await uploadPhotoToDrive(supplyId, pendingPhoto);
     if (driveUrl) return driveUrl;
@@ -905,7 +890,7 @@ async function resolvePhoto(supplyId) {
 //  自動同步（3 秒防抖）
 // ─────────────────────────────────────────────
 function scheduleSync() {
-  const url = document.getElementById('gsUrl').value.trim();
+  const url = GS_URL;
   if (!url) return;
   clearTimeout(autoSyncTimer);
   autoSyncTimer = setTimeout(() => doSync(), 3000);
@@ -1007,9 +992,22 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   });
 });
 
-// 啟動：載入儲存的網址
-loadSavedUrl();
+// 啟動：帶入網址 + 自動載入資料
 renderAll();
+
+async function init() {
+  // 把常數網址填入輸入框（讓使用者看到目前設定）
+  const urlInput = document.getElementById('gsUrl');
+  if (GS_URL && !GS_URL.includes('換成你的網址')) {
+    urlInput.value = GS_URL;
+    urlInput.readOnly = true;  // 已寫死，防止誤改
+    urlInput.style.background = 'var(--bg2)';
+    urlInput.title  = '網址已由管理員設定在程式碼中';
+    addSyncLog('🔗 網址已內建，自動載入中…');
+    await gsPull();
+  }
+}
+init();
 </script>
 </body>
 </html>
