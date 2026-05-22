@@ -644,6 +644,47 @@ function renderLog() {
 function renderAll() { updateStats(); renderInventory(); renderLog(); }
 
 // ─────────────────────────────────────────────
+//  CRUD 操作
+// ─────────────────────────────────────────────
+function editItem(id) { openModal('edit', id); }
+
+function deleteItem(id) {
+  const s = supplies.find(x => x.id === id); if (!s) return;
+  if (!confirm('確定刪除「' + s.name + '」？')) return;
+  supplies = supplies.filter(x => x.id !== id);
+  if (selectedId === id) {
+    selectedId = null;
+    document.getElementById('detailPanel').classList.remove('open');
+  }
+  renderAll();
+  scheduleSync();
+  notify('已刪除「' + s.name + '」');
+}
+
+function openTxnFor(id) {
+  closeModal();
+  setTimeout(() => openModal('txn', id), 50);
+}
+
+function submitTxn() {
+  const id     = parseInt(document.getElementById('t-item').value);
+  const type   = document.getElementById('t-type').value;
+  const qty    = parseInt(document.getElementById('t-qty').value) || 0;
+  const person = document.getElementById('t-person').value || '—';
+  const date   = document.getElementById('t-date').value;
+  const note   = document.getElementById('t-note').value;
+  if (!qty) return alert('請輸入數量');
+  const s = supplies.find(x => x.id === id); if (!s) return;
+  if (type === 'out' && qty > s.stock) return alert('庫存不足！目前：' + s.stock + ' ' + s.unit);
+  s.stock += type === 'in' ? qty : -qty;
+  logs.unshift({ date, name: s.name, type, qty, unit: s.unit, person, note });
+  closeModal();
+  renderAll();
+  scheduleSync();
+  notify((type === 'in' ? '↑ 入庫' : '↓ 出庫') + ' ' + s.name + ' ' + qty + s.unit);
+}
+
+// ─────────────────────────────────────────────
 //  Modal
 // ─────────────────────────────────────────────
 function openModal(type, sid) {
