@@ -218,7 +218,7 @@ input[type=file]{display:none}
           <input type="text" id="search" placeholder="搜尋耗材名稱…" oninput="renderInventory()">
           <select id="catFilter" onchange="renderInventory()">
             <option value="">全部類別</option>
-            <option>文具</option><option>紙材</option><option>清潔</option><option>電器</option><option>其他</option>
+            <option>貼紥類</option><option>耗材</option><option>團服</option><option>工具</option><option>其他</option>
           </select>
           <select id="statusFilter" onchange="renderInventory()">
             <option value="">全部狀態</option>
@@ -672,7 +672,7 @@ function openModal(type, sid) {
         <div class="fg"><label>類別</label>
           <select id="f-cat"><option>文具</option><option>紙材</option><option>清潔</option><option>電器</option><option>其他</option></select></div>
         <div class="fg"><label>存放位置</label>
-          <input id="f-loc" value="${s ? s.location : ''}" placeholder="例：A-1"></div>
+          <input id="f-loc" value="${s ? s.location : ''}" placeholder="例：第一格櫃子"></div>
         <div class="fg"><label>初始庫存</label>
           <input id="f-stock" type="number" value="${s ? s.stock : 0}" min="0"></div>
         <div class="fg"><label>單位</label>
